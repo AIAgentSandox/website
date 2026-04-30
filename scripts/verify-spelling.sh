@@ -51,12 +51,9 @@ exitHandler() (
 )
 trap exitHandler EXIT
 
-# perform go get in a temp dir as we are not tracking this version in a go module
-# if we do the go get in the repo, it will create / update a go.mod and go.sum
-cd "${TMP_DIR}"
-GO111MODULE=on GOBIN="${TMP_DIR}" go get "github.com/client9/misspell/cmd/misspell@${TOOL_VERSION}"
+# install misspell into the temp dir so we don't pollute the repo
+GOBIN="${TMP_DIR}" go install "github.com/client9/misspell/cmd/misspell@${TOOL_VERSION}"
 export PATH="${TMP_DIR}:${PATH}"
-cd "${ROOT}"
 
 # check spelling
 RES=0
@@ -67,7 +64,7 @@ ERROR_LOG="${TMP_DIR}/errors.log"
 # this file.
 skipping_file="${KUBE_ROOT}/scripts/.spelling_failures"
 failing_packages=$(sed "s| | -e |g" "${skipping_file}")
-git ls-files -z | grep --null-data "^content/${LANGUAGE}" | grep --null-data -v -e "${failing_packages}" | xargs -0 -r misspell > "${ERROR_LOG}"
+git diff -z --name-only --diff-filter=AM HEAD~1..HEAD -- "content/${LANGUAGE}" | grep --null-data -v -e "${failing_packages}" | xargs -0 -r misspell > "${ERROR_LOG}"
 if [[ -s "${ERROR_LOG}" ]]; then
   sed 's/^/error: /' "${ERROR_LOG}" # add 'error' to each line to highlight in e2e status
   echo "Found spelling errors!" >&2
