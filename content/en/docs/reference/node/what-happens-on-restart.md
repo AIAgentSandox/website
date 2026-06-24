@@ -109,12 +109,16 @@ A node reboot is the most disruptive of these events, because every container on
 the node stops and the kubelet and container runtime start from scratch. When
 the node comes back:
 
-* All containers are stopped and then recreated. Pods that are not backed by a
-  controller (and are not otherwise recreated) do not come back; Pods managed by
-  a controller such as a {{< glossary_tooltip term_id="deployment" text="Deployment" >}},
+* All containers are stopped, and the kubelet recreates them when the node comes
+  back. Pods that stay assigned to the node, because they are not evicted or
+  deleted during the reboot, are restarted in place by the kubelet, including
+  standalone Pods that are not backed by a controller. If a Pod is instead
+  evicted or deleted, for example after the `node.kubernetes.io/not-ready`
+  toleration period described below, only Pods managed by a controller such as a
+  {{< glossary_tooltip term_id="deployment" text="Deployment" >}},
   {{< glossary_tooltip term_id="statefulset" text="StatefulSet" >}}, or
-  {{< glossary_tooltip term_id="daemonset" text="DaemonSet" >}} are recreated on
-  the node or rescheduled elsewhere.
+  {{< glossary_tooltip term_id="daemonset" text="DaemonSet" >}} get a replacement
+  Pod, on this node or elsewhere; standalone Pods are not recreated.
 
 * The node registers again and is reported as `NotReady` until the kubelet,
   container runtime, and network are ready. While the node is `NotReady`, the
@@ -132,10 +136,14 @@ the node comes back:
   the node. The device plugin must re-register with the kubelet after the reboot
   so that these allocations can be reconciled.
 
-* Local storage that is not persisted across the reboot is lost. Data written to
-  a container's writable layer or to an
-  [`emptyDir`](/docs/concepts/storage/volumes/#emptydir) volume does not survive
-  the reboot.
+* Local storage tied to the lifetime of a container or Pod can be lost. A
+  container's writable layer is discarded when the container is recreated, so
+  data written there does not survive the reboot. An
+  [`emptyDir`](/docs/concepts/storage/volumes/#emptydir) volume lasts as long as
+  the Pod stays on the node: a memory-backed `emptyDir` (`medium: Memory`) is
+  always lost on reboot because it is held in RAM, while a disk-backed `emptyDir`
+  survives a reboot as long as the Pod is not evicted or deleted, and is removed
+  only when the Pod leaves the node.
 
 For workloads that must tolerate node reboots, run Pods through a controller, use
 [persistent volumes](/docs/concepts/storage/persistent-volumes/) for data that
