@@ -29,18 +29,18 @@ containers against the desired state. During this window the following happens:
   {{< glossary_tooltip term_id="kube-scheduler" text="scheduler" >}} does not
   place new Pods on it.
 
-* Historically, the kubelet reset the readiness of every running container to
-  `false` on restart. Because each Pod's readiness drives Endpoints,
+* The kubelet preserves the readiness of running containers across a restart.
+  Each Pod's readiness drives
+  {{< glossary_tooltip term_id="endpoints" text="Endpoints" >}},
   {{< glossary_tooltip term_id="endpoint-slice" text="EndpointSlices" >}}, and
-  Gateway configuration, this caused a large load on the API server and on
-  components that watch endpoint state, and could briefly remove healthy Pods
-  from Service load balancing. The kubelet now preserves the readiness of
-  running containers across a restart. This behavior is described in
+  Gateway configuration, so resetting it on every restart would place a large
+  load on the API server and on components that watch endpoint state, and could
+  briefly remove healthy Pods from Service load balancing. This behavior is
+  described in
   [KEP-4781: Fix inconsistent container ready state after kubelet restart](https://github.com/kubernetes/enhancements/issues/4781).
-  The legacy behavior is gated behind the `ChangeContainerStatusOnKubeletRestart`
-  [feature gate](/docs/reference/command-line-tools-reference/feature-gates/),
-  which can be enabled to opt back in to resetting container readiness on
-  restart.
+  Enabling the `ChangeContainerStatusOnKubeletRestart`
+  [feature gate](/docs/reference/command-line-tools-reference/feature-gates/)
+  makes the kubelet instead reset container readiness to `false` on restart.
 
 * {{< glossary_tooltip term_id="garbage-collection" text="Garbage collection" >}}
   of unused images and containers, and Pod
@@ -87,8 +87,8 @@ During this window:
   when the runtime restarted, its execution state can be lost, in which case the
   init container runs again.
 
-* Interrupting an operation at a precise moment can, in rare cases, leave state
-  inconsistent. These are edge cases:
+* In rare cases, interrupting an operation at a precise moment can leave state
+  inconsistent:
 
   * An interrupted image pull may leave inconsistent image layers, which can
     render the image unusable until it is pulled again.
@@ -141,7 +141,7 @@ For workloads that must tolerate node reboots, run Pods through a controller, us
 [persistent volumes](/docs/concepts/storage/persistent-volumes/) for data that
 must survive, and configure
 [disruption budgets](/docs/concepts/workloads/pods/disruptions/) and probes so
-that traffic is only sent to Pods once they are genuinely ready.
+that traffic is only sent to Pods once they are ready.
 
 ## {{% heading "whatsnext" %}}
 
