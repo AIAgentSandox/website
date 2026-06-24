@@ -4,7 +4,7 @@
 
 ### Task 1: what happens on restart page
 
-- [ ] Add a new Node Reference page linked from https://kubernetes.io/docs/reference/node/ and explaining what happens on various restarts. Here is some information I have already. Fill up TODOs and clean up language. Add links to other documentation pages whenever necessary.
+- [x] Add a new Node Reference page linked from https://kubernetes.io/docs/reference/node/ and explaining what happens on various restarts. Here is some information I have already. Fill up TODOs and clean up language. Add links to other documentation pages whenever necessary.
 
 1. Impact of kubelet restart
 - All Pods are marked as not ready on restart. This causes a big load on API server to update endpoint statuses, gateway settings, etc. This was fixed in a recent kubernetes version. TODO: link the KEP
