@@ -38,9 +38,12 @@ containers against the desired state. During this window the following happens:
   briefly remove healthy Pods from Service load balancing. This behavior is
   described in
   [KEP-4781: Fix inconsistent container ready state after kubelet restart](https://github.com/kubernetes/enhancements/issues/4781).
-  Enabling the `ChangeContainerStatusOnKubeletRestart`
+  Resetting container readiness to `false` on every restart was the default
+  behavior for a long time. The `ChangeContainerStatusOnKubeletRestart`
   [feature gate](/docs/reference/command-line-tools-reference/feature-gates/)
-  makes the kubelet instead reset container readiness to `false` on restart.
+  lets you revert to that behavior, but it is a deprecated legacy escape hatch
+  that is slated for removal, so you should not rely on it. For more detail, see
+  [Pod behavior during kubelet restarts](/docs/concepts/workloads/pods/pod-lifecycle/#kubelet-restarts).
 
 * {{< glossary_tooltip term_id="garbage-collection" text="Garbage collection" >}}
   of unused images and containers, and Pod
