@@ -24,6 +24,8 @@ This section contains the following reference topics about nodes:
 
 * [Seccomp information](/docs/reference/node/seccomp/)
 
+* [What Happens on Restart](/docs/reference/node/what-happens-on-restart/)
+
 You can also read node reference details from elsewhere in the
 Kubernetes documentation, including:
 
