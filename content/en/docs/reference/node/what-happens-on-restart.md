@@ -31,8 +31,8 @@ containers against the desired state. During this period of time, the following 
 
 * The kubelet preserves the readiness of running containers across a restart.
   Each Pod's readiness drives
-  {{< glossary_tooltip term_id="endpoints" text="Endpoints" >}},
-  {{< glossary_tooltip term_id="endpoint-slice" text="EndpointSlices" >}}, and
+  {{< glossary_tooltip term_id="endpoint-slice" text="EndpointSlices" >}},
+  {{< glossary_tooltip term_id="endpoints" text="Endpoints" >}} and
   Gateway configuration, so resetting it on every restart would place a large
   load on the API server and on components that watch endpoint state, and could
   briefly remove healthy Pods from Service load balancing. This behavior is
