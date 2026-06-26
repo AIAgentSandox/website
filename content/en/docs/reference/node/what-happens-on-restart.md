@@ -6,13 +6,16 @@ weight: 90
 
 System components on a node sometimes restart, either because of an upgrade, a
 crash, or an explicit operator action. This page describes what happens to Pods
-and to the node when the [kubelet](/docs/reference/command-line-tools-reference/kubelet/),
+and to the node when the {{< glossary_tooltip term_id="kubelet" text="kubelet" >}},
 the {{< glossary_tooltip term_id="container-runtime" text="container runtime" >}},
 or the node as a whole restarts.
 
 In a healthy cluster these restarts are usually safe and do not break running
 workloads. The sections below describe the effects to be aware of, which become
-more pronounced on large or heavily loaded nodes.
+more pronounced on large or heavily loaded nodes. The most disruptive case is a
+[node reboot](#impact-of-a-node-reboot), which encompasses both a container
+runtime restart and a kubelet restart, but with more consequences because every
+container on the node stops first.
 
 ## Impact of a kubelet restart
 
@@ -28,6 +31,13 @@ containers against the desired state. During this period of time, the following 
   initializing. While the node is `NotReady`, the
   {{< glossary_tooltip term_id="kube-scheduler" text="scheduler" >}} does not
   place new Pods on it.
+
+* [Node heartbeats](/docs/concepts/architecture/nodes/#node-heartbeats) pause
+  while the kubelet is down and resume once it has restarted and finished
+  initializing, when the kubelet renews its `Lease` object and posts node status
+  again. If the kubelet runs under systemd with a watchdog configured, its
+  systemd heartbeats (the watchdog notifications) likewise stop while the process
+  is restarting and resume once the kubelet is running again.
 
 * The kubelet preserves the readiness of running containers across a restart.
   Each Pod's readiness drives
@@ -58,10 +68,14 @@ containers against the desired state. During this period of time, the following 
   cancelled pull may have to start over from the beginning when it is retried.
 
 * Pod admission runs again for the Pods on the node as the kubelet replays them
-  through its admission checks. If the node's labels or taints have changed while
+  through its admission checks. If the node's
+  {{< glossary_tooltip term_id="label" text="labels" >}} or
+  {{< glossary_tooltip term_id="taint" text="taints" >}} have changed while
   the kubelet was down, a Pod can fail admission and be rejected even though it
-  was already running. For more detail see
-  [kubernetes/kubernetes#123859](https://github.com/kubernetes/kubernetes/issues/123859).
+  was already running. This is an existing behavior, and whether it should be
+  considered a bug is still debated; see
+  [kubernetes/kubernetes#123859](https://github.com/kubernetes/kubernetes/issues/123859)
+  for the discussion and details.
 
 Overall, in a healthy cluster a kubelet restart does not break running
 workloads. On large clusters with overcommitted nodes, however, the
@@ -95,7 +109,7 @@ During this window:
   delayed until the runtime is available again.
 
 * If an
-  [init container](/docs/concepts/workloads/pods/init-containers/) was executing
+  {{< glossary_tooltip term_id="init-container" text="init container" >}} was executing
   when the runtime restarted, its execution state can be lost, in which case the
   init container runs again.
 
@@ -115,9 +129,22 @@ generally a safe operation. On a heavily loaded node, where every operation is
 slower, the window for interrupting a critical operation is larger and the
 probability of hitting one of these edge cases increases.
 
+## Impact of a node reboot
+
 A node reboot is the most disruptive of these events, because every container on
-the node stops. After the node boots, the kubelet and container runtime start again
-with no containers actually running.
+the node stops. A reboot encompasses both a container runtime restart and a
+kubelet restart, but with more consequences: where a standalone kubelet or
+runtime restart leaves the already-running containers in place, a reboot stops
+every container first. After the node boots, the kubelet and container runtime
+start again with no containers actually running.
+
+Before a planned reboot you can reduce the impact by cordoning the node, so the
+scheduler stops placing new Pods on it, and then
+{{< glossary_tooltip term_id="drain" text="draining" >}} it to evict the existing
+Pods gracefully. When
+[graceful node shutdown](/docs/concepts/cluster-administration/node-shutdown/#graceful-node-shutdown)
+is enabled, the kubelet also attempts to stop running Pods cleanly when it
+detects that the node is shutting down.
 However, the kubelet retains a local memory of which Pods (and containers) were running
 at the time the node was rebooted.
 However, the kubelet retains a local memory of which Pods (and containers) were running
@@ -149,8 +176,10 @@ the node comes back:
   Pod, on this node or elsewhere; standalone Pods are not recreated.
 
 * The node registers again and is reported as `NotReady` until the kubelet,
-  container runtime, and network are ready. While the node is `NotReady`, the
-  node may be [tainted](/docs/concepts/scheduling-eviction/taint-and-toleration/)
+  container runtime, and network are ready. The node's network plugin must finish
+  starting before Pods receive networking and the node can report `Ready`. While
+  the node is `NotReady`, the node may be
+  [tainted](/docs/concepts/scheduling-eviction/taint-and-toleration/)
   with `node.kubernetes.io/not-ready`, and after the configured toleration
   period the control plane can evict Pods that do not tolerate it.
 
