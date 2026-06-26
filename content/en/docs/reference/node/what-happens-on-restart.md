@@ -68,6 +68,13 @@ workloads. On large clusters with overcommitted nodes, however, the
 re-initialization load and the paused garbage collection and eviction can
 contribute to system instability.
 
+Kubernetes does not define the behavior of your
+container runtime if you restart it. Depending on the container runtime
+you use, a restart may trigger a stop or restart for
+all local containers.
+However, most container runtimes used with Kubernetes
+use a configuration that allows you to restart the
+runtime and leave containers executing.
 ## Impact of a container runtime restart
 
 When the container runtime (such as
