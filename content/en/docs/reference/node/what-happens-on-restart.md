@@ -102,7 +102,7 @@ During this window:
     or NRI call, may leave the sandbox in an inconsistent state, with CNI only
     partially initialized and the possibility of a resource leak.
 
-To cause problems, a container runtime restart has to interrupt a critical
+a low risk action. On a heavily loaded node, where every operation is
 operation at a precise moment, which is a low-probability situation, so it is
 generally a safe operation. On a heavily loaded node, where every operation is
 slower, the window for interrupting a critical operation is larger and the
