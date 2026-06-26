@@ -1,6 +1,6 @@
 ---
 content_type: "reference"
-title: What Happens on Restart
+title: What Happens After A Node Restart
 weight: 90
 ---
 
