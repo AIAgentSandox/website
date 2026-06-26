@@ -16,9 +16,9 @@ more pronounced on large or heavily loaded nodes.
 
 ## Impact of a kubelet restart
 
-When the kubelet restarts, the containers that are already running continue to
-run. The kubelet re-establishes its view of the node and reconciles the running
-containers against the desired state. During this window the following happens:
+If only the kubelet restarts, the containers that are already running **continue to
+run**. The kubelet re-establishes its view of the Node, and reconciles the running
+containers against the desired state. During this period of time, the following happens:
 
 * The kubelet re-initializes and re-synchronizes its caches, which produces a
   burst of requests to the {{< glossary_tooltip term_id="kube-apiserver" text="API server" >}}.
