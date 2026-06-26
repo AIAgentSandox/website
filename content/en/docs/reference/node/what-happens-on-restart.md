@@ -108,9 +108,11 @@ generally a safe operation. On a heavily loaded node, where every operation is
 slower, the window for interrupting a critical operation is larger and the
 probability of hitting one of these edge cases increases.
 
-## Impact of a node reboot
-
 A node reboot is the most disruptive of these events, because every container on
+the node stops. After the node boots, the kubelet and container runtime start again
+with no containers actually running.
+However, the kubelet retains a local memory of which Pods (and containers) were running
+at the time the node was rebooted.
 the node stops and the kubelet and container runtime start from scratch. When
 the node comes back:
 
