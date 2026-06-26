@@ -45,12 +45,13 @@ containers against the desired state. During this period of time, the following 
   lets you revert to that behavior, but it is a deprecated legacy escape hatch
   that is slated for removal, so you should not rely on it. For more detail, see
   [Pod behavior during kubelet restarts](/docs/concepts/workloads/pods/pod-lifecycle/#kubelet-restarts).
-
-* {{< glossary_tooltip term_id="garbage-collection" text="Garbage collection" >}}
+* During the initial kubelet startup, 
+  {{< glossary_tooltip term_id="garbage-collection" text="Garbage collection" >}}
   of unused images and containers, and Pod
   [evictions](/docs/concepts/scheduling-eviction/node-pressure-eviction/) driven
-  by node-pressure, are paused for the duration of the restart and for a short
-  grace period afterwards. This can slow the node's reaction to memory or disk
+  by node-pressure, are paused. This pause continues for a  a short
+  grace period after the kubelet has completed its main startup routines.
+  This delay can slow the node's reaction to memory or disk pressure.
   pressure.
 
 * Ongoing image pulls are cancelled. Depending on the container runtime, a
