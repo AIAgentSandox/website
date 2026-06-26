@@ -48,10 +48,11 @@ the eviction thresholds from the node's `Capacity`.
 {{< note >}}
 The `Capacity` that the `kubelet` reports is not the raw hardware capacity of
 the machine. For `memory`, the `kubelet` uses `MemTotal` from `/proc/meminfo`,
-which the kernel reports after subtracting its own reservations, such as the
-kernel image, `vmemmap`, `crashkernel`, `initrd`, ACPI tables,
-firmware-reserved regions, hugepages allocated at boot, and memory-mapped I/O
-holes. These reservations are not part of `kubeReserved` or `systemReserved`.
+which the kernel reports after subtracting memory that is reserved or otherwise
+unavailable to the operating system, such as the kernel image, `vmemmap`,
+`crashkernel`, `initrd`, ACPI tables, firmware-reserved regions, hugepages
+allocated at boot, and memory-mapped I/O holes. This reserved memory is not
+part of `kubeReserved` or `systemReserved`.
 
 Because of this, `Capacity` can change when the kernel changes how much memory
 it reserves, for example after the operating system is patched and the node
