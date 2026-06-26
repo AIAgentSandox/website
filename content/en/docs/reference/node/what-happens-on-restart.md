@@ -113,6 +113,8 @@ the node stops. After the node boots, the kubelet and container runtime start ag
 with no containers actually running.
 However, the kubelet retains a local memory of which Pods (and containers) were running
 at the time the node was rebooted.
+However, the kubelet retains a local memory of which Pods (and containers) were running
+at the time the node was rebooted.
 the node stops and the kubelet and container runtime start from scratch. When
 the node comes back:
 
