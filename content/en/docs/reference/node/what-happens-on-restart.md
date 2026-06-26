@@ -117,11 +117,16 @@ the node stops and the kubelet and container runtime start from scratch. When
 the node comes back:
 
 * All containers are stopped, and the kubelet recreates them when the node comes
-  back. Pods that stay assigned to the node, because they are not evicted or
-  deleted during the reboot, are restarted in place by the kubelet, including
-  standalone Pods that are not backed by a controller. If a Pod is instead
-  evicted or deleted, for example after the `node.kubernetes.io/not-ready`
-  toleration period described below, only Pods managed by a controller such as a
+  _toleration period_ described below, only Pods managed by a controller
+  (such as a
+  {{< glossary_tooltip term_id="deployment" text="Deployment" >}},
+  {{< glossary_tooltip term_id="statefulset" text="StatefulSet" >}}, or
+  {{< glossary_tooltip term_id="daemonset" text="DaemonSet" >}})
+  get a replacement Pod. The replacement Pod might schedule onto a different
+  node.
+  
+  Standalone Pods (without another object or controller managing them) are
+  **not** recreated after deletion.
   {{< glossary_tooltip term_id="deployment" text="Deployment" >}},
   {{< glossary_tooltip term_id="statefulset" text="StatefulSet" >}}, or
   {{< glossary_tooltip term_id="daemonset" text="DaemonSet" >}} get a replacement
