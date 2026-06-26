@@ -49,14 +49,16 @@ the eviction thresholds from the node's `Capacity`.
 The `Capacity` that the `kubelet` reports is not the raw hardware capacity of
 the machine. For `memory`, the `kubelet` uses `MemTotal` from `/proc/meminfo`,
 which the kernel reports after subtracting memory that is reserved or otherwise
-unavailable to the operating system, such as the kernel image, `vmemmap`,
-`crashkernel`, `initrd`, ACPI tables, firmware-reserved regions, hugepages
-allocated at boot, and memory-mapped I/O holes. This reserved memory is not
-part of `kubeReserved` or `systemReserved`.
+unavailable to the operating system. This includes memory that the kernel
+reserves, such as the kernel image, `vmemmap`, `crashkernel`, and hugepages
+allocated at boot, as well as firmware and hardware carve-outs such as ACPI
+tables, firmware-reserved regions, and memory-mapped I/O holes. None of this
+reserved memory is part of `kubeReserved` or `systemReserved`.
 
 Because of this, `Capacity` can change when the kernel changes how much memory
 it reserves, for example after the operating system is patched and the node
-reboots into a different kernel. When `Capacity` changes, 'Allocatable' changes
+reboots into a different kernel. (Firmware and hardware carve-outs change only
+with firmware or hardware changes, not with an OS patch.) When `Capacity` changes, 'Allocatable' changes
 with it, even though `kubeReserved` and `systemReserved` are unchanged. If you
 observe 'Allocatable' drifting on nodes without any change to your reservation
 settings, compare the node's `Capacity` before and after the change to see
