@@ -37,7 +37,7 @@ containers against the desired state. During this period of time, the following 
   container readiness on every restart would place a large
   load on the API server and on components that watch endpoint state, and could
   briefly remove healthy Pods from Service load balancing. This behavior is
-  described in
+  [KEP-4781: Fix inconsistent container ready state after kubelet restart](https://www.kubernetes.dev/resources/keps/4781/)
   [KEP-4781: Fix inconsistent container ready state after kubelet restart](https://github.com/kubernetes/enhancements/issues/4781).
   Resetting container readiness to `false` on every restart was the default
   behavior for a long time. The `ChangeContainerStatusOnKubeletRestart`
