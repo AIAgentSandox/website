@@ -115,7 +115,14 @@ However, the kubelet retains a local memory of which Pods (and containers) were 
 at the time the node was rebooted.
 However, the kubelet retains a local memory of which Pods (and containers) were running
 at the time the node was rebooted.
-the node stops and the kubelet and container runtime start from scratch. When
+  _standalone Pods_ that are not backed by a
+  {{< glossary_tooltip term_id="controller" text="controller" >}}.
+  The kubelet continues to run existing
+  {{< glossary_tooltip text="static Pods" term_id="static-pod" >}} and does
+  not replace them (the kubelet may make launch containers for the existing static
+  Pod).
+
+  If an existing Pod is instead
 the node comes back:
 
 * All containers are stopped, and the kubelet recreates them when the node comes
