@@ -35,9 +35,7 @@ containers against the desired state. During this period of time, the following 
 * [Node heartbeats](/docs/concepts/architecture/nodes/#node-heartbeats) pause
   while the kubelet is down and resume once it has restarted and finished
   initializing, when the kubelet renews its `Lease` object and posts node status
-  again. If the kubelet runs under systemd with a watchdog configured, its
-  systemd heartbeats (the watchdog notifications) likewise stop while the process
-  is restarting and resume once the kubelet is running again.
+  again.
 
 * The kubelet preserves the readiness of running containers across a restart.
   Each Pod's readiness drives
@@ -176,8 +174,7 @@ the node comes back:
   Pod, on this node or elsewhere; standalone Pods are not recreated.
 
 * The node registers again and is reported as `NotReady` until the kubelet,
-  container runtime, and network are ready. The node's network plugin must finish
-  starting before Pods receive networking and the node can report `Ready`. While
+  container runtime, and network are ready. While
   the node is `NotReady`, the node may be
   [tainted](/docs/concepts/scheduling-eviction/taint-and-toleration/)
   with `node.kubernetes.io/not-ready`, and after the configured toleration
