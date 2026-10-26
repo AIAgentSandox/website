@@ -22,12 +22,19 @@ The page describes [cgroup v2](/docs/concepts/architecture/cgroups/) together wi
 The root directory for all cgroups in a cgroup v2 system is `/sys/fs/cgroup/`. With the
 `systemd` [cgroup driver](/docs/tasks/administer-cluster/kubeadm/configure-cgroup-driver/),
 Kubernetes organizes {{< glossary_tooltip text="Pods" term_id="pod" >}} into a hierarchy
-of systemd slices. The root for all Kubernetes-managed containers is `kubepods.slice`.
+of [systemd slices](https://www.freedesktop.org/software/systemd/man/latest/systemd.slice.html).
+The base slice for all Kubernetes-managed containers is `kubepods.slice`. systemd calls
+its own topmost slice the *root slice* and names it `-.slice`; `kubepods.slice` is a
+child of the root slice and is not itself one.
 
-You can set up non-standard cgroup layouts through the `kubeletCgroups`, `systemCgroups`,
-`cgroupRoot`, and `cgroupsPerQOS` settings of the
-[kubelet configuration](/docs/reference/config-api/kubelet-config.v1beta1/). This page
-does not cover those layouts.
+The `cgroupRoot` and `cgroupsPerQOS` settings of the
+[kubelet configuration](/docs/reference/config-api/kubelet-config.v1beta1/) control where
+the kubelet places this hierarchy and whether it creates the QoS sub-slices, and the
+`kubeletCgroups` and `systemCgroups` settings place the kubelet itself and the system
+daemons. The paths on this page assume the defaults, so that `kubepods.slice` is a direct
+child of `-.slice` and the QoS sub-slices exist. A non-default `cgroupRoot` nests the same
+tree under another slice, which changes the paths but not the settings that the kubelet
+writes at each level, nor the reasoning behind them.
 
 A typical top level of slices looks like the following:
 
@@ -44,7 +51,8 @@ sessions. These slice settings are intended to help assure node stability.
 ## Child slices for `kubepods.slice` {#kubepods-child-slices}
 
 Under `kubepods.slice`, Kubernetes creates sub-slices based on the
-[Quality of Service (QoS) class](/docs/concepts/workloads/pods/pod-qos/) of the Pods:
+{{< glossary_tooltip text="Quality of Service (QoS) class" term_id="qos-class" >}} of the
+Pods:
 
 1.  **Guaranteed**: the kubelet places these Pods directly under `kubepods.slice`.
     - Path: `/sys/fs/cgroup/kubepods.slice/kubepods-pod<UID>.slice/`
@@ -112,26 +120,26 @@ Kubernetes setting: `runc` applies the non-linear conversion from version 1.3.2 
 
 #### Design rationale
 
-##### Why not set `cpu.max` on root cgroup?
+##### Why not set `cpu.max` on the Pod base cgroup? {#why-not-set-cpu-max-on-pod-base-cgroup}
 
-Kubernetes does not set `cpu.max` on the root `kubepods.slice`, nor on the intermediate
-QoS slices such as `kubepods-burstable.slice`, because a hard limit there introduces
-collective throttling that can hurt high-priority Pods.
+Kubernetes does not set `cpu.max` on `kubepods.slice`, nor on the intermediate QoS slices
+such as `kubepods-burstable.slice`, because a hard limit there introduces collective
+throttling that can hurt high-priority Pods.
 
 Consider a node that runs two Pods:
 
 1.  A **Guaranteed** Pod that serves latency-sensitive requests.
 1.  A **Burstable** Pod that performs background data processing, with low CPU requests.
 
-With a hard limit (`cpu.max`) on the root `kubepods.slice`, the following could happen:
+With a hard limit (`cpu.max`) on `kubepods.slice`, the following could happen:
 
 - The Burstable Pod consumes the entire collective quota while the Guaranteed Pod is idle.
 - A request arrives for the Guaranteed Pod, and the kernel throttles it immediately,
-  because the *root cgroup* has exhausted its quota for the current period, even though
+  because `kubepods.slice` has exhausted its quota for the current period, even though
   the Guaranteed Pod itself has used no CPU.
 
-By using only proportional weights (`cpu.weight`) at the root and QoS levels, Kubernetes
-ensures that:
+By using only proportional weights (`cpu.weight`) at the `kubepods.slice` and QoS levels,
+Kubernetes ensures that:
 
 - Pods can always take up idle CPU cycles across the node.
 - Guaranteed Pods can claim their requested share of CPU immediately on demand, and a
@@ -168,9 +176,9 @@ Burstable and BestEffort slices, Kubernetes achieves:
   receive only the weight that `kubepods-burstable.slice` carries. This stops a large
   number of low-priority Pods from washing out the priority of a high-priority Guaranteed
   Pod, which is what would happen if they all lived at the same level.
-- **Predictable performance**: a Guaranteed Pod with a high weight at the root level keeps
-  its relative share against the QoS slices, whatever the internal complexity or workload
-  of those slices.
+- **Predictable performance**: a Guaranteed Pod with a high weight directly under
+  `kubepods.slice` keeps its relative share against the QoS slices, whatever the internal
+  complexity or workload of those slices.
 
 #### QoS CPU max calculations
 
@@ -178,7 +186,7 @@ The `cpu.max` setting enforces the hard CPU limit from the `resources.limits.cpu
 a container. It uses the format `quota period`, where `quota` is the allowed CPU time
 within a given `period`. The `period` defaults to `100000` microseconds.
 
-##### 1. Guaranteed and Burstable Pods
+##### Guaranteed and Burstable Pods
 
 For Pods with CPU limits defined:
 
@@ -188,13 +196,13 @@ For Pods with CPU limits defined:
 - **Example**: a container with a `200m` limit results in `20000 100000`, which is 20ms
   per 100ms period.
 
-##### 2. BestEffort Pods
+##### BestEffort Pods
 
 BestEffort Pods have no CPU limits.
 
 - **Pod and container level**: `cpu.max` is set to `max`, so no hard limit applies.
 
-##### 3. QoS slices
+##### QoS slices
 
 The kubelet does not typically enforce a hard CPU limit at the QoS tier level.
 
@@ -204,18 +212,18 @@ The kubelet does not typically enforce a hard CPU limit at the QoS tier level.
 This design lets Pods within these slices burst into any idle CPU cycles on the node, as
 long as they have not hit their own Pod-specific or container-specific limits.
 
-##### 4. Root cgroup (`kubepods.slice`)
+##### Kubernetes Pod base cgroup (`kubepods.slice`)
 
-The root `kubepods.slice` also has `cpu.max` set to `max`. This value is not configurable;
+`kubepods.slice` also has `cpu.max` set to `max`. This value is not configurable;
 Kubernetes reserves CPU for system services through `cpu.weight` and `cpuset.cpus` rather
 than through a hard limit. The collective set of all Pods can therefore use the entire CPU
 capacity of the node while the system does not need it. Read
-[Why not set `cpu.max` on root cgroup?](#why-not-set-cpumax-on-root-cgroup) for the
-reasoning.
+[Why not set `cpu.max` on the Pod base cgroup?](#why-not-set-cpu-max-on-pod-base-cgroup)
+for the reasoning.
 
 #### QoS CPU weight calculations
 
-The weight of the root slice is fixed and derives from
+The `cpu.weight` of `kubepods.slice` is fixed and derives from
 [Node Allocatable](/docs/tasks/administer-cluster/reserve-compute-resources/). The
 kubelet recalculates the weights of its children as Pods arrive and leave, to divide the
 available share internally.
@@ -227,13 +235,14 @@ available share internally.
   therefore carries enough priority to satisfy the requests of its Pods when it competes
   with other tiers.
 - **BestEffort slice (`kubepods-besteffort.slice`)**: its `cpu.weight` is fixed at the
-  **minimum value** of `1`. BestEffort Pods therefore receive only the CPU cycles that the
-  Guaranteed and Burstable tiers leave unused.
+  **minimum configurable weighting**, which is `1`. BestEffort Pods therefore receive only
+  the CPU cycles that the Guaranteed and Burstable tiers leave unused; assuring this is
+  left to the Linux kernel.
 
 ### Memory
 
 Kubernetes manages memory resources in cgroup v2 primarily through the **`memory.max`**
-setting, which enforces a hard limit. The kubelet applies memory limits to the root
+setting, which enforces a hard limit. The kubelet applies memory limits to
 `kubepods.slice` and to individual Pod and container cgroups, but not to the intermediate
 QoS slices. When a cgroup exceeds its limit, the kernel first tries to reclaim memory; if
 reclaim fails, the kernel OOM (Out of Memory) killer can kill the processes within that
@@ -241,7 +250,7 @@ cgroup.
 
 #### Principles Kubernetes follows
 
-##### Why not set `memory.max` on Burstable and BestEffort slices
+##### Why not set `memory.max` on Burstable and BestEffort slices?
 
 Leaving these slices unlimited may seem counter-intuitive, because it lets Burstable Pods
 collectively consume all the memory available to Pods. Kubernetes instead **protects
@@ -257,14 +266,17 @@ Guaranteed Pods** through several layers of defense:
 - **OOM score adjustment (second layer)**: if memory pressure grows faster than eviction
   can keep up with, the kernel OOM killer acts as a safety net. Kubernetes sets
   `oom_score_adj` for processes so that the kernel targets lower-priority Pods first
-  (BestEffort, then Burstable) and protects Guaranteed Pods.
+  (BestEffort, then Burstable) and protects Guaranteed Pods. This layer covers the kernel
+  OOM killer only. A userspace OOM manager, such as `systemd-oomd`, selects victims by its
+  own criteria and ignores `oom_score_adj`, so a node that delegates OOM handling to one
+  loses this ordering.
 - **Avoiding collective OOM kills**: a hard limit on the Burstable slice could make the
   kernel kill a Pod while the node still has plenty of free memory, only because the
   neighbors of that Pod in the same slice consumed the collective quota.
 
 #### `memory.max` calculation
 
-##### 1. Guaranteed and Burstable Pods
+##### Guaranteed and Burstable Pods
 
 For Pods with memory limits defined:
 
@@ -273,14 +285,14 @@ For Pods with memory limits defined:
 - **Container level**: each container also has `memory.max` set to its specific limit.
 - **Example**: a container with a `256Mi` limit results in `268435456` bytes.
 
-##### 2. BestEffort Pods
+##### BestEffort Pods
 
 BestEffort Pods have no memory limits.
 
 - **Pod and container level**: `memory.max` is set to `max`, so the Pod can in theory
   consume all the memory available on the node.
 
-##### 3. QoS slices
+##### QoS slices
 
 The kubelet does not enforce hard memory limits at the intermediate QoS tier level.
 
@@ -320,10 +332,9 @@ The kubelet also writes one setting that restates a kernel default:
 
 - **`cpu.max`**: `max 100000`. No hard limit, so Pods can use all the CPU of the node.
 
-Read [Why not set `cpu.max` on root cgroup?](#why-not-set-cpumax-on-root-cgroup) to learn
-why this is set to `max`.
-
-The kubelet can also set other fields, such as hugepages limits.
+Read
+[Why not set `cpu.max` on the Pod base cgroup?](#why-not-set-cpu-max-on-pod-base-cgroup)
+to learn why this is set to `max`.
 
 
 ## {{% heading "whatsnext" %}}
